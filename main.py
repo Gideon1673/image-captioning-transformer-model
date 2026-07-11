@@ -101,3 +101,61 @@ class MultiHeadAttention(nn.Module):
         out = torch.cat(outs, dim=-1)
         out = self.dropout(self.proj(out))
         return out, weis
+
+
+class FeedForward(nn.Module):
+    def __init__(self, n_embd):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(n_embd, 4 * n_embd),
+            nn.ReLU(),
+            nn.Linear(4 * n_embd, n_embd),
+            nn.Dropout(dropout),
+        )
+    def forward(self, x):
+        return self.net(x)
+
+class Block(nn.Module):
+    def __init__(self, n_embd, n_head):
+        super().__init__()
+        head_size = n_embd // n_head
+        self.sa = MultiHeadAttention(n_head, head_size)
+        self.ffwd = FeedForward(n_embd)
+        self.ln1 = nn.LayerNorm(n_embd)
+        self.ln2 = nn.LayerNorm(n_embd)
+
+    def forward(self, x):
+        sa_out, weis = self.sa(self.ln1(x))
+        x = x + sa_out          # residual connection
+        x = x + self.ffwd(self.ln2(x))
+        return x, weis
+
+class MiniGPT(nn.Module):
+    def __init__(self, vocab_size, n_embd, n_head, n_layer):
+        super().__init__()
+        self.token_embedding = nn.Embedding(vocab_size, n_embd)
+        self.position_embedding = nn.Embedding(block_size, n_embd)
+        self.blocks = nn.ModuleList([Block(n_embd, n_head) for _ in range(n_layer)])
+        self.ln_f = nn.LayerNorm(n_embd)
+        self.lm_head = nn.Linear(n_embd, vocab_size)
+
+    def forward(self, idx, targets=None):
+        B, T = idx.shape
+        tok_emb = self.token_embedding(idx)                          # (B,T,n_embd)
+        pos_emb = self.position_embedding(torch.arange(T))            # (T,n_embd)
+        x = tok_emb + pos_emb
+
+        all_weis = []
+        for block in self.blocks:
+            x, weis = block(x)
+            all_weis.append(weis)
+
+        x = self.ln_f(x)
+        logits = self.lm_head(x)   # (B,T,vocab_size)
+
+        loss = None
+        if targets is not None:
+            B, T, C = logits.shape
+            loss = F.cross_entropy(logits.view(B*T, C), targets.view(B*T))
+
+        return logits, loss, all_weis
