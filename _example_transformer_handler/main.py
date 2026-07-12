@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-with open('./content/truyen_kieu_data.txt', 'r', encoding='utf-8') as f:
+with open('truyen_kieu_data.txt', 'r', encoding='utf-8') as f:
     text = f.read()
 
 print(f"Tổng số ký tự: {len(text)}")

@@ -1,3 +1,5 @@
 .idea
 .venv
-datasets/raw/Images
+datasets/raw/Images/*
+/datasets/raw/captions.txt
+/datasets/processed/*
