@@ -14,7 +14,7 @@ IMAGE_TO_CAPTIONS_FILE = (
     PROCESSED_DATA_DIR / "image_to_captions.json"
 )
 
-TRAIN_DATA_FILE = PROCESSED_DATA_DIR / "train.json"
+TRAIN_DATA_MAPPING = PROCESSED_DATA_DIR / "train.json"
 VALIDATION_DATA_FILE = PROCESSED_DATA_DIR / "validation.json"
 TEST_DATA_FILE = PROCESSED_DATA_DIR / "test.json"
 
@@ -24,9 +24,10 @@ VOCABULARY_FILE = PROCESSED_DATA_DIR / "vocabulary.json"
 class Config:
     # Dataset
     image_dir: str = IMAGE_DIR
+    resize_image_dir: str = PROCESSED_DATA_DIR / "resize_image"
     caption_file: str = CAPTION_FILE
     image_to_captions_file: str = IMAGE_TO_CAPTIONS_FILE
-    train_data_file: str = TRAIN_DATA_FILE
+    train_data_file: str = TRAIN_DATA_MAPPING
     validation_data_file: str = VALIDATION_DATA_FILE
     test_data_file: str = TEST_DATA_FILE
     vocabulary_file: str = VOCABULARY_FILE

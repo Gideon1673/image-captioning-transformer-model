@@ -9,7 +9,51 @@ from PIL import Image
 from torch import Tensor
 from pathlib import Path
 import json
-from config import PROJECT_ROOT, TRAIN_DATA_FILE
+
+from config import PROJECT_ROOT, TRAIN_DATA_MAPPING
+from torchvision import transforms
+
+IMAGE_TRANSFORM = transforms.Compose([transforms.ToTensor()]) # chuẩn hóa [0,255] -> [0,1]
+
+
+class ImageCaptionDataset:
+    def __init__(self, json_path: str, transform=IMAGE_TRANSFORM, caption_idx: int | None = None):
+        """
+        json_path: đường dẫn tới file image_to_caption.json
+        transform: pipeline biến đổi ảnh -> tensor
+        caption_idx: nếu None -> trả về toàn bộ list captions của ảnh (dùng để augment/sample ngẫu nhiên)
+                     nếu là int -> chỉ lấy caption thứ caption_idx (dùng khi muốn 1 cặp (ảnh, caption) cố định)
+        """
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Giữ lại key (tên file ảnh) để dễ debug/truy vết
+        self.items = list(data.items())  # [(filename, info_dict), ...]
+        self.transform = transform
+        self.caption_idx = caption_idx
+
+    def __len__(self):
+        return len(self.items)
+
+    def __getitem__(self, idx):
+        filename, info = self.items[idx]
+
+        resize_path = info["resize_image_path"]
+        image = Image.open(resize_path).convert("RGB")
+
+        image_tensor = self.transform(image)  # shape: (3, 224, 224)
+
+        captions = info["captions"]
+        if self.caption_idx is not None:
+            caption = captions[self.caption_idx % len(captions)]
+        else:
+            caption = captions  # trả nguyên list, xử lý tokenize ở bước sau
+
+        return {
+            "filename": filename,
+            "image": image_tensor,
+            "caption": caption,
+        }
 
 
 class ImageTransform:
@@ -234,7 +278,7 @@ class ImageTransform:
 
 
 def test_image_transform() -> None:
-    with TRAIN_DATA_FILE.open(mode="r", encoding="utf-8") as file:
+    with TRAIN_DATA_MAPPING.open(mode="r", encoding="utf-8") as file:
         train_mapping = json.load(file)
 
     transform = ImageTransform(

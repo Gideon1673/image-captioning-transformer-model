@@ -9,7 +9,7 @@ from typing import Any
 from config import (
     IMAGE_TO_CAPTIONS_FILE,
     TEST_DATA_FILE,
-    TRAIN_DATA_FILE,
+    TRAIN_DATA_MAPPING,
     VALIDATION_DATA_FILE,
 )
 
@@ -310,7 +310,7 @@ def split_dataset() -> None:
         )
     )
 
-    save_json_mapping(mapping=train_mapping, output_file=TRAIN_DATA_FILE)
+    save_json_mapping(mapping=train_mapping, output_file=TRAIN_DATA_MAPPING)
 
     save_json_mapping(mapping=validation_mapping, output_file=VALIDATION_DATA_FILE)
 
@@ -324,6 +324,6 @@ def split_dataset() -> None:
     )
 
     print()
-    print(f"Train file: {TRAIN_DATA_FILE}")
+    print(f"Train file: {TRAIN_DATA_MAPPING}")
     print(f"Validation file: {VALIDATION_DATA_FILE}")
     print(f"Test file: {TEST_DATA_FILE}")
