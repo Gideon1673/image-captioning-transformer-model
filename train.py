@@ -1,10 +1,18 @@
 import torch
+from torch.utils.data import DataLoader
 
-from config import TRAIN_DATA_FILE, Config
-from data.dataset import ImageTransform, load_transformed_images_to_gpu
+from config import Config
+from data.image_caption_dataset import ImageCaptionDataset
+from data.patching_embedding import PatchEmbedding
+from data.positional_embedding import PositionalEmbedding
+# from config import Config
+# from data.dataset import ImageTransform, load_transformed_images_to_gpu
 from data.prepare_flicrk8k_datasets import prepare_dataset
+from data.resize_image import resize_image
 from data.split_dataset import split_dataset
-from models.module_vit_encoder import PatchEmbedding, ImageQKVProjection
+
+
+# from models.module_vit_encoder import PatchEmbedding, ImageQKVProjection
 
 
 def print_cuda_memory(label: str) -> None:
@@ -24,150 +32,149 @@ def main() -> None:
     # --------------------------------------------------
     # Bước 1: Chuẩn bị và chia dataset.
     # --------------------------------------------------
-    prepare_dataset()
-    split_dataset()
+    # prepare_dataset()
+    # split_dataset()
+    # resize_image()
 
     # --------------------------------------------------
-    # Bước 2: Khởi tạo ImageTransform.
-    # --------------------------------------------------
-    train_transform = ImageTransform(
-        image_size=Config.image_size,
-        resize_size=256,
-        train=True,
-        horizontal_flip_probability=0.5,
-    )
-
-    # --------------------------------------------------
-    # Bước 3: Chọn GPU nếu CUDA khả dụng.
+    # Bước 2: Chọn thiết bị huấn luyện.
     # --------------------------------------------------
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print(f"Device: {device}")
-    if device.type == "cuda":
-        print("GPU:", torch.cuda.get_device_name(device))
+    print(f"Thiết bị đang sử dụng: {device}")
 
     # --------------------------------------------------
-    # Bước 4: Load và transform một batch ảnh.
+    # Bước 3: Khởi tạo Dataset.
     #
-    # Output: images_gpu: [B, 3, 224, 224]
+    # Trong ImageCaptionDataset:
+    # - Đọc ảnh đã resize 224x224.
+    # - ToTensor: [0,255] -> [0,1].
+    # - Normalize bằng mean/std.
+    # - Chọn ngẫu nhiên một caption.
     # --------------------------------------------------
-    images_gpu, image_names = load_transformed_images_to_gpu(
-        mapping_file=TRAIN_DATA_FILE,
-        transform=train_transform,
+    train_dataset = ImageCaptionDataset(json_path=Config.train_data_file)
+
+    # --------------------------------------------------
+    # Bước 4: Khởi tạo DataLoader.
+    # --------------------------------------------------
+    train_dataloader = DataLoader(
+        dataset=train_dataset,
         batch_size=Config.batch_size,
-        device=device
+        shuffle=True,
+        num_workers=4,
+        pin_memory=device.type == "cuda",
+        drop_last=False
     )
 
-    print("\n===== TRANSFORMED IMAGES =====")
-    print("Image count:", len(image_names))
-    print("Images shape:", images_gpu.shape)
-    print("Images dtype:", images_gpu.dtype)
-    print("Images device:", images_gpu.device)
-    print("Images on CUDA:", images_gpu.is_cuda)
-
-    assert images_gpu.ndim == 4
-    assert images_gpu.shape[1:] == (3, 224, 224)
-
-    print_cuda_memory("Sau khi load ảnh lên GPU")
+    print(f"Số ảnh huấn luyện: {len(train_dataset)}")
+    print(f"Số batch: {len(train_dataloader)}")
 
     # --------------------------------------------------
-    # Bước 5: Tạo PatchEmbedding trên GPU.
-    # [B, 3, 224, 224] -> [B, 196, 256]
+    # Bước 5: Tính số lượng patch.
+    #
+    # Image: 224x224
+    # Patch: 16x16
+    #
+    # Số patch mỗi chiều:
+    # 224 / 16 = 14
+    #
+    # Tổng số patch:
+    # 14 * 14 = 196
+    # --------------------------------------------------
+    patches_per_side = Config.image_size // Config.patch_size
+    num_patches = patches_per_side ** 2
+
+    # --------------------------------------------------
+    # Bước 6: Khởi tạo Patch Embedding.
+    #
+    # Input:
+    # [B, 3, 224, 224]
+    #
+    # Sau patchify:
+    # [B, 196, 768]
+    #
+    # Sau Linear Projection:
+    # [B, 196, d_model]
     # --------------------------------------------------
     patch_embedding = PatchEmbedding(
-        image_size=Config.image_size,
         patch_size=Config.patch_size,
-        in_channels=Config.in_channels,
-        embed_dim=Config.embed_dim,
-        dropout=Config.dropout,
+        in_channels=3,
+        d_model=Config.d_model
     ).to(device)
 
+    print(f"Số patch trên mỗi ảnh: {num_patches}")
+
     # --------------------------------------------------
-    # Bước 6: Tạo module QKV Projection trên GPU.
-    # [B, 196, 256] -> Q, K, V: [B, 4, 196, 64]
+    # Bước 7: Khởi tạo Positional Embedding.
+    #
+    # Positional Embedding:
+    # [196, d_model]
+    #
+    # Được cộng vào Patch Embedding:
+    # [B, 196, d_model]
     # --------------------------------------------------
-    qkv_projection = ImageQKVProjection(
-        embed_dim=Config.embed_dim,
-        num_heads=Config.encoder_heads,
+    positional_embedding = PositionalEmbedding(
+        num_patches=num_patches,
+        d_model=Config.d_model
     ).to(device)
 
-    print("\n===== MODEL DEVICE =====")
-    print("PatchEmbedding device:", next(patch_embedding.parameters()).device)
-
-    print("QKV Projection device:", next(qkv_projection.parameters()).device)
-
-    # Đây mới là kiểm tra forward, chưa huấn luyện.
-    # eval() sẽ tắt Dropout.
-    patch_embedding.eval()
-    qkv_projection.eval()
+    patch_embedding.train()
+    positional_embedding.train()
 
     # --------------------------------------------------
-    # Bước 7: Chuyển ảnh thành patch embeddings.
-    # Bước 8: Tạo Q, K, V.
+    # Bước 8: Đưa từng batch qua Patch Embedding
+    # và Positional Embedding.
     # --------------------------------------------------
-    with torch.no_grad():
-        image_tokens = patch_embedding(images_gpu)
-        query, key, value = qkv_projection(image_tokens)
+    for batch_index, batch in enumerate(train_dataloader):
+        images = batch["image"].to(device=device, non_blocking=True)
+
+        captions = batch["caption"]
+        filenames = batch["filename"]
+
+        # images:
+        # [B, 3, 224, 224]
+        print(f"\nBatch {batch_index + 1}")
+        print(f"Images: {images.shape}")
+
+        # Chia patch và Linear Projection.
+        patch_tokens = patch_embedding(images)
+
+        # patch_tokens:
+        # [B, 196, d_model]
+        print(f"Patch embeddings: {patch_tokens.shape}")
+
+        # Cộng positional embedding.
+        image_tokens = positional_embedding(patch_tokens)
+
+        # image_tokens:
+        # [B, 196, d_model]
+        print(f"Patch + positional embeddings: {image_tokens.shape}")
 
         # --------------------------------------------------
-        # Bước 9: Kiểm tra shapes.
+        # Kiểm tra shape.
         # --------------------------------------------------
-        print("\n===== PATCH EMBEDDING =====")
-        print("Image tokens shape:", image_tokens.shape)
-        print("Image tokens device:", image_tokens.device)
+        current_batch_size = images.shape[0]
 
-        print("\n===== Q, K, V =====")
-        print("Query shape:", query.shape)
-        print("Key shape:", key.shape)
-        print("Value shape:", value.shape)
+        expected_shape = (current_batch_size, num_patches, Config.d_model)
 
-        print("Query device:", query.device)
-        print("Key device:", key.device)
-        print("Value device:", value.device)
+        assert image_tokens.shape == expected_shape, (
+            f"Shape không hợp lệ: "
+            f"expected={expected_shape}, "
+            f"actual={tuple(image_tokens.shape)}"
+        )
 
-        batch_size = images_gpu.shape[0]
+        assert image_tokens.device == device, (
+            f"Tensor nằm trên {image_tokens.device}, "
+            f"nhưng model đang sử dụng {device}"
+        )
 
-        expected_image_token_shape = (batch_size, 196, 256)
+        print(f"Caption đầu tiên: {captions[0]}")
+        print(f"Filename đầu tiên: {filenames[0]}")
+        print("Kiểm tra pipeline thành công.")
 
-        expected_qkv_shape = (batch_size, 4, 196, 64)
-
-        assert image_tokens.shape == expected_image_token_shape
-        assert query.shape == expected_qkv_shape
-        assert key.shape == expected_qkv_shape
-        assert value.shape == expected_qkv_shape
-        assert image_tokens.device == device
-        assert query.device == device
-        assert key.device == device
-        assert value.device == device
-
-        print_cuda_memory("Sau khi tạo Q, K, V")
-
-        # --------------------------------------------------
-        # Bước 10: Lấy Q, K, V của một ảnh cụ thể.
-        # --------------------------------------------------
-        first_image_name = image_names[0]
-
-        # Shape mỗi ảnh:
-        # [num_heads, num_patches, head_dim]
-        # [4, 196, 64]
-        first_image_query = query[0]
-        first_image_key = key[0]
-        first_image_value = value[0]
-
-        print("\n===== FIRST IMAGE =====")
-        print("Image name:", first_image_name)
-        print("Query của ảnh đầu tiên:", first_image_query.shape)
-        print("Key của ảnh đầu tiên:", first_image_key.shape)
-        print("Value của ảnh đầu tiên:", first_image_value.shape)
-
-        # Vector Query của:
-        # - ảnh đầu tiên
-        # - head đầu tiên
-        # - patch đầu tiên
-        #
-        # Shape: [64]
-        first_patch_query_vector = query[0, 0, 0,]
-        print("Query vector của patch đầu tiên:", first_patch_query_vector.shape)
-        print("\nĐã tạo Q, K, V thành công trên", device)
+        # Tạm thời chỉ kiểm tra batch đầu tiên.
+        # Xóa break khi thêm Vision Transformer Encoder
+        # và vòng lặp huấn luyện hoàn chỉnh.
+        break
 
 
 if __name__ == "__main__":

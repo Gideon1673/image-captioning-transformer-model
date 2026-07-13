@@ -114,7 +114,7 @@ def process_single_image(image_name: str, image_data: dict[str, Any], output_dir
     if not original_image_path.exists():
         raise FileNotFoundError(f"Không tìm thấy ảnh: {original_image_path}")
 
-    output_path = output_dir / original_image_path.name
+    output_path = output_dir / f"{original_image_path.stem}.jpg"
 
     with Image.open(original_image_path) as original_image:
         original_image = ImageOps.exif_transpose(original_image)
@@ -196,7 +196,7 @@ def resize_images_with_threads(
     return success_count, failed_count
 
 
-def main() -> None:
+def resize_image() -> None:
     # Bước 1: Lấy danh sách đường dẫn ảnh từ JSON
     image_to_captions = load_image_mapping()
 
@@ -213,6 +213,10 @@ def main() -> None:
     print(f"Resize thành công: {success_count}")
     print(f"Resize thất bại: {failed_count}")
     print(f"Đã cập nhật JSON: {MAPPING_FILE}")
+
+
+def main() -> None:
+    resize_image()
 
 
 if __name__ == "__main__":
