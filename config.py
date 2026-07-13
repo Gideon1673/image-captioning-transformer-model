@@ -31,6 +31,7 @@ class Config:
     validation_data_file: str = VALIDATION_DATA_FILE
     test_data_file: str = TEST_DATA_FILE
     vocabulary_file: str = VOCABULARY_FILE
+    d_model : int = 384
 
     # Image
     image_size: int = 224

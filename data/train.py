@@ -2,7 +2,7 @@ import torch
 from PIL import Image
 
 from config import IMAGE_DIR
-from data.dataset import ImageTransform
+from data.image_caption_dataset import ImageTransform
 
 train_transform = ImageTransform(
     image_size=224,

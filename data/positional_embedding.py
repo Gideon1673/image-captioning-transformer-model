@@ -1,31 +1,37 @@
 import torch
 import torch.nn as nn
 
-from data.patching_image import PatchEmbedding
+from config import Config
+from data.patching_embedding import PatchEmbedding
 
 
 class PositionalEmbedding(nn.Module):
     """
     Learned Positional Embedding
     """
-    def __init__(self, num_patches: int, d_model: int = 512):
+    def __init__(self, num_patches: int, d_model: int = Config.d_model):
         super().__init__()
         # nn.Embedding(num_patches, d_model): bảng tra cứu, mỗi vị trí patch
         # (0, 1, 2, ..., 195) có 1 vector d_model chiều RIÊNG, học được qua train
         self.position_embedding_table = nn.Embedding(num_patches, d_model)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: (B, num_patches, d_model) - output từ PatchEmbedding
-        B, N, D = x.shape
+        _, num_patches, d_model = x.shape
 
-        # Tạo chỉ số vị trí 0..N-1, đưa lên cùng device với x (quan trọng khi chạy GPU)
-        positions = torch.arange(N, device=x.device)        # (num_patches,)
+        if num_patches > self.position_embedding_table.num_embeddings:
+            raise ValueError(
+                f"Input có {num_patches} patches nhưng positional embedding "
+                f"chỉ hỗ trợ {self.position_embedding_table.num_embeddings}"
+            )
 
-        pos_emb = self.position_embedding_table(positions)  # (num_patches, d_model)
+        if d_model != self.position_embedding_table.embedding_dim:
+            raise ValueError(
+                f"d_model của input là {d_model}, expected "
+                f"{self.position_embedding_table.embedding_dim}"
+            )
 
-        # Cộng vào embedding ảnh — broadcasting tự động nhân bản pos_emb
-        # cho từng ảnh trong batch: (B, N, D) + (N, D) -> (B, N, D)
-        return x + pos_emb
+        positions = torch.arange(num_patches, device=x.device)
+        return x + self.position_embedding_table(positions)
 
 
 # ==============================
