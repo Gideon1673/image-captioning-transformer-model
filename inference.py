@@ -19,7 +19,7 @@ from models.image_captioning_transformer import (
 CHECKPOINT_PATH = Config.checkpoint_path
 
 IMAGE_PATH = (
-    "datasets/inference/example.jpg"
+    "datasets/inference/1299459550_1fd5594fa2.jpg"
 )
 
 
