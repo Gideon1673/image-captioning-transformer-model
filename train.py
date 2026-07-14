@@ -48,50 +48,32 @@ def create_or_load_vocabulary() -> Vocabulary:
     if vocabulary_path.exists():
         try:
             vocabulary = Vocabulary.load(vocabulary_path=vocabulary_path, tokenizer=tokenizer)
-
-            print(
-                f"Đã tải vocabulary: "f"{vocabulary_path}")
-
+            print(f"Đã tải vocabulary: "f"{vocabulary_path}")
             return vocabulary
 
-        except (
-                JSONDecodeError,
-                KeyError,
-                TypeError,
-                ValueError
-        ) as error:
+        except (JSONDecodeError, KeyError, TypeError, ValueError) as error:
             print(f"Vocabulary hiện tại không hợp lệ: {error}")
             print("Tiến hành tạo lại vocabulary.")
 
     vocabulary = Vocabulary(tokenizer=tokenizer)
-
     vocabulary.build_from_json(
         json_path=Config.train_data_file,
         min_frequency=Config.min_word_frequency
     )
 
     vocabulary.save(output_path=vocabulary_path)
-
     print(f"Đã tạo vocabulary mới: {vocabulary_path}")
-
     return vocabulary
 
 
-def create_train_dataloader(
-        device: torch.device,
-        vocabulary: Vocabulary
-) -> DataLoader:
+def create_train_dataloader(device: torch.device, vocabulary: Vocabulary) -> DataLoader:
     train_dataset = ImageCaptionDataset(
         json_path=Config.train_data_file,
         vocabulary=vocabulary,
-        max_caption_length=(
-            Config.max_caption_length
-        )
+        max_caption_length=Config.max_caption_length
     )
 
-    collator = ImageCaptionCollator(
-        pad_token_id=vocabulary.pad_token_id
-    )
+    collator = ImageCaptionCollator(pad_token_id=vocabulary.pad_token_id)
 
     return DataLoader(
         dataset=train_dataset,
@@ -106,99 +88,51 @@ def create_train_dataloader(
 
 
 def train_one_epoch(
-    model: ImageCaptioningTransformer,
-    train_dataloader: DataLoader,
-    criterion: nn.Module,
-    optimizer: AdamW,
-    device: torch.device,
-    pad_token_id: int,
-    epoch: int
+        model: ImageCaptioningTransformer,
+        train_dataloader: DataLoader,
+        criterion: nn.Module,
+        optimizer: AdamW,
+        device: torch.device,
+        pad_token_id: int,
+        epoch: int
 ) -> float:
     model.train()
 
     total_loss = 0.0
     total_valid_tokens = 0
 
-    for batch_index, batch in enumerate(
-        train_dataloader,
-        start=1
-    ):
-        images = batch["images"].to(
-            device=device,
-            non_blocking=True
-        )
-
-        caption_ids = batch["caption_ids"].to(
-            device=device,
-            non_blocking=True
-        )
-
-        caption_padding_mask = (
-            batch["caption_padding_mask"].to(
-                device=device,
-                non_blocking=True
-            )
-        )
+    for batch_index, batch in enumerate(train_dataloader, start=1):
+        images = batch["images"].to(device=device, non_blocking=True)
+        caption_ids = batch["caption_ids"].to(device=device, non_blocking=True)
+        caption_padding_mask = (batch["caption_padding_mask"].to(device=device, non_blocking=True))
 
         # Teacher forcing.
         decoder_input_ids = caption_ids[:, :-1]
         decoder_target_ids = caption_ids[:, 1:]
 
-        decoder_padding_mask = (
-            caption_padding_mask[:, :-1]
-        )
+        decoder_padding_mask = caption_padding_mask[:, :-1]
 
-        optimizer.zero_grad(
-            set_to_none=True
-        )
+        optimizer.zero_grad(set_to_none=True)
 
         logits = model(
             images=images,
             decoder_input_ids=decoder_input_ids,
-            decoder_padding_mask=(
-                decoder_padding_mask
-            )
+            decoder_padding_mask=decoder_padding_mask
         )
 
         vocabulary_size = logits.shape[-1]
 
-        loss = criterion(
-            logits.reshape(
-                -1,
-                vocabulary_size
-            ),
-            decoder_target_ids.reshape(-1)
-        )
-
+        loss = criterion(logits.reshape(-1, vocabulary_size), decoder_target_ids.reshape(-1))
         loss.backward()
-
-        clip_grad_norm_(
-            model.parameters(),
-            max_norm=Config.max_grad_norm
-        )
-
+        clip_grad_norm_(model.parameters(), max_norm=Config.max_grad_norm)
         optimizer.step()
 
-        valid_token_count = (
-            decoder_target_ids
-            != pad_token_id
-        ).sum().item()
-
-        total_loss += (
-            loss.item() * valid_token_count
-        )
-
+        valid_token_count = (decoder_target_ids != pad_token_id).sum().item()
+        total_loss += (loss.item() * valid_token_count)
         total_valid_tokens += valid_token_count
 
-        if (
-            batch_index == 1
-            or batch_index % Config.log_interval == 0
-            or batch_index == len(train_dataloader)
-        ):
-            average_loss = (
-                total_loss / total_valid_tokens
-            )
-
+        if batch_index == 1 or batch_index % Config.log_interval == 0 or batch_index == len(train_dataloader):
+            average_loss = (total_loss / total_valid_tokens)
             print(
                 f"Epoch {epoch:02d} | "
                 f"Batch {batch_index:04d}/"
@@ -211,29 +145,16 @@ def train_one_epoch(
 
 
 def save_checkpoint(
-    model: ImageCaptioningTransformer,
-    optimizer: AdamW,
-    epoch: int,
-    average_loss: float,
-    vocabulary_size: int
+        model: ImageCaptioningTransformer,
+        optimizer: AdamW,
+        epoch: int,
+        average_loss: float,
+        vocabulary_size: int
 ) -> Path:
-    checkpoint_directory = Path(
-        Config.checkpoint_dir
-    )
-
-    checkpoint_directory.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    checkpoint_path = (
-        checkpoint_directory
-        / f"image_captioning_epoch_{epoch:03d}.pt"
-    )
-
-    temporary_path = checkpoint_path.with_name(
-        f"{checkpoint_path.name}.tmp"
-    )
+    checkpoint_directory = Path(Config.checkpoint_dir)
+    checkpoint_directory.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = (checkpoint_directory / f"image_captioning_epoch_{epoch:03d}.pt")
+    temporary_path = checkpoint_path.with_name(f"{checkpoint_path.name}.tmp")
 
     checkpoint = {
         "epoch": epoch,
@@ -247,15 +168,8 @@ def save_checkpoint(
         "vocabulary_size": vocabulary_size
     }
 
-    torch.save(
-        checkpoint,
-        temporary_path
-    )
-
-    temporary_path.replace(
-        checkpoint_path
-    )
-
+    torch.save(checkpoint, temporary_path)
+    temporary_path.replace(checkpoint_path)
     return checkpoint_path
 
 
@@ -298,18 +212,12 @@ def main() -> None:
         max_caption_length=(
             Config.max_caption_length
         ),
-        pad_token_id=(
-            vocabulary.pad_token_id
-        ),
+        pad_token_id=vocabulary.pad_token_id,
         d_model=Config.d_model,
         num_heads=Config.num_heads,
         d_ff=Config.d_ff,
-        num_encoder_layers=(
-            Config.num_encoder_layers
-        ),
-        num_decoder_layers=(
-            Config.num_decoder_layers
-        ),
+        num_encoder_layers=Config.num_encoder_layers,
+        num_decoder_layers=Config.num_decoder_layers,
         dropout=0.1,
         layer_norm_eps=1e-6
     ).to(device)
@@ -317,9 +225,7 @@ def main() -> None:
     # --------------------------------------------------
     # Loss.
     # --------------------------------------------------
-    criterion = nn.CrossEntropyLoss(
-        ignore_index=vocabulary.pad_token_id
-    )
+    criterion = nn.CrossEntropyLoss(ignore_index=vocabulary.pad_token_id)
 
     # --------------------------------------------------
     # Optimizer.
@@ -337,19 +243,14 @@ def main() -> None:
     # --------------------------------------------------
     print("\n===== BẮT ĐẦU HUẤN LUYỆN =====")
 
-    for epoch in range(
-            1,
-            Config.num_epochs + 1
-    ):
+    for epoch in range(1, Config.num_epochs + 1):
         average_loss = train_one_epoch(
             model=model,
             train_dataloader=train_dataloader,
             criterion=criterion,
             optimizer=optimizer,
             device=device,
-            pad_token_id=(
-                vocabulary.pad_token_id
-            ),
+            pad_token_id=vocabulary.pad_token_id,
             epoch=epoch
         )
 
@@ -361,14 +262,8 @@ def main() -> None:
             vocabulary_size=vocabulary_size
         )
 
-        print(
-            f"Epoch {epoch:02d} hoàn thành | "
-            f"Average Loss: {average_loss:.4f}"
-        )
-
-        print(
-            f"Checkpoint: {checkpoint_path}"
-        )
+        print(f"Epoch {epoch:02d} hoàn thành | Average Loss: {average_loss:.4f}")
+        print(f"Checkpoint: {checkpoint_path}")
 
     print("\n===== HUẤN LUYỆN HOÀN THÀNH =====")
 

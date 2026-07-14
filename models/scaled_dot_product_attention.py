@@ -46,16 +46,12 @@ class ScaledDotProductAttention(nn.Module):
 
         self.attention_dropout = nn.Dropout(dropout)
 
-    def forward(
-            self,
-            query: torch.Tensor,
-            key: torch.Tensor,
-            value: torch.Tensor
-    ) -> tuple[
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor
-    ]:
+    def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) \
+            -> tuple[
+                torch.Tensor,
+                torch.Tensor,
+                torch.Tensor
+            ]:
         """
         Thực hiện Scaled Dot-Product Attention.
         """
@@ -114,12 +110,7 @@ class ScaledDotProductAttention(nn.Module):
 
         return attention_output, attention_scores, attention_weights
 
-    def _validate_inputs(
-            self,
-            query: torch.Tensor,
-            key: torch.Tensor,
-            value: torch.Tensor
-    ) -> None:
+    def _validate_inputs(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> None:
         """
         Kiểm tra shape và device của Q, K, V.
         """
@@ -166,9 +157,7 @@ class ScaledDotProductAttention(nn.Module):
                 f"nhận được {query.shape[-1]}."
             )
 
-        if not (
-                query.device == key.device == value.device
-        ):
+        if not (query.device == key.device == value.device):
             raise ValueError(
                 "Query, Key và Value phải nằm trên cùng device: "
                 f"query={query.device}, "

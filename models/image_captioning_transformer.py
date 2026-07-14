@@ -5,16 +5,10 @@ import torch.nn as nn
 
 from data.patching_embedding import PatchEmbedding
 from data.positional_embedding import PositionalEmbedding
-from models.language_modeling_head import (
-    LanguageModelingHead
-)
+from models.language_modeling_head import LanguageModelingHead
 from models.text_embedding import TextEmbedding
-from models.text_transformer_decoder import (
-    TextTransformerDecoder
-)
-from models.vision_transformer_encoder import (
-    VisionTransformerEncoder
-)
+from models.text_transformer_decoder import TextTransformerDecoder
+from models.vision_transformer_encoder import VisionTransformerEncoder
 
 
 class ImageCaptioningTransformer(nn.Module):
@@ -37,38 +31,27 @@ class ImageCaptioningTransformer(nn.Module):
     """
 
     def __init__(
-        self,
-        image_size: int,
-        patch_size: int,
-        vocabulary_size: int,
-        max_caption_length: int,
-        pad_token_id: int,
-        d_model: int = 512,
-        num_heads: int = 4,
-        d_ff: int = 2048,
-        num_encoder_layers: int = 4,
-        num_decoder_layers: int = 4,
-        dropout: float = 0.1,
-        layer_norm_eps: float = 1e-6
+            self,
+            image_size: int,
+            patch_size: int,
+            vocabulary_size: int,
+            max_caption_length: int,
+            pad_token_id: int,
+            d_model: int = 512,
+            num_heads: int = 4,
+            d_ff: int = 2048,
+            num_encoder_layers: int = 4,
+            num_decoder_layers: int = 4,
+            dropout: float = 0.1,
+            layer_norm_eps: float = 1e-6
     ):
         super().__init__()
 
         patches_per_side = image_size // patch_size
-        num_patches = patches_per_side**2
+        num_patches = patches_per_side ** 2
 
-        self.patch_embedding = PatchEmbedding(
-            patch_size=patch_size,
-            in_channels=3,
-            d_model=d_model
-        )
-
-        self.image_positional_embedding = (
-            PositionalEmbedding(
-                num_patches=num_patches,
-                d_model=d_model
-            )
-        )
-
+        self.patch_embedding = PatchEmbedding(patch_size=patch_size, in_channels=3, d_model=d_model)
+        self.image_positional_embedding = PositionalEmbedding(num_patches=num_patches, d_model=d_model)
         self.vision_transformer_encoder = (
             VisionTransformerEncoder(
                 d_model=d_model,
@@ -99,63 +82,33 @@ class ImageCaptioningTransformer(nn.Module):
             )
         )
 
-        self.language_modeling_head = (
-            LanguageModelingHead(
-                d_model=d_model,
-                vocabulary_size=vocabulary_size
-            )
-        )
+        self.language_modeling_head = LanguageModelingHead(d_model=d_model, vocabulary_size=vocabulary_size)
 
-    def encode_images(
-        self,
-        images: torch.Tensor
-    ) -> torch.Tensor:
+    def encode_images(self, images: torch.Tensor) -> torch.Tensor:
         """
-        images:
-            [B, 3, image_size, image_size]
-
-        output:
-            [B, num_patches, d_model]
+        images: [B, 3, image_size, image_size]
+        output: [B, num_patches, d_model]
         """
 
-        patch_tokens = self.patch_embedding(
-            images
-        )
-
-        image_tokens = (
-            self.image_positional_embedding(
-                patch_tokens
-            )
-        )
-
-        visual_features = (
-            self.vision_transformer_encoder(
-                image_tokens
-            )
-        )
+        patch_tokens = self.patch_embedding(images)
+        image_tokens = self.image_positional_embedding(patch_tokens)
+        visual_features = self.vision_transformer_encoder(image_tokens)
 
         return visual_features
 
     def decode_captions(
-        self,
-        decoder_input_ids: torch.Tensor,
-        visual_features: torch.Tensor,
-        decoder_padding_mask: torch.Tensor | None = None
+            self,
+            decoder_input_ids: torch.Tensor,
+            visual_features: torch.Tensor,
+            decoder_padding_mask: torch.Tensor | None = None
     ) -> torch.Tensor:
         """
-        decoder_input_ids:
-            [B, text_length]
-
-        visual_features:
-            [B, num_patches, d_model]
-
-        output logits:
-            [B, text_length, vocabulary_size]
+        decoder_input_ids: [B, text_length]
+        visual_features: [B, num_patches, d_model]
+        output logits: [B, text_length, vocabulary_size]
         """
 
-        text_embeddings = self.text_embedding(
-            decoder_input_ids
-        )
+        text_embeddings = self.text_embedding(decoder_input_ids)
 
         decoder_features = (
             self.text_transformer_decoder(
@@ -165,21 +118,17 @@ class ImageCaptioningTransformer(nn.Module):
             )
         )
 
-        logits = self.language_modeling_head(
-            decoder_features
-        )
+        logits = self.language_modeling_head(decoder_features)
 
         return logits
 
     def forward(
-        self,
-        images: torch.Tensor,
-        decoder_input_ids: torch.Tensor,
-        decoder_padding_mask: torch.Tensor | None = None
+            self,
+            images: torch.Tensor,
+            decoder_input_ids: torch.Tensor,
+            decoder_padding_mask: torch.Tensor | None = None
     ) -> torch.Tensor:
-        visual_features = self.encode_images(
-            images
-        )
+        visual_features = self.encode_images(images)
 
         logits = self.decode_captions(
             decoder_input_ids=decoder_input_ids,
