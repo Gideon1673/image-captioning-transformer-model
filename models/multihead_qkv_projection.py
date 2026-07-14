@@ -65,13 +65,7 @@ class MultiHeadQKVProjection(nn.Module):
 
         batch_size, num_patches, d_model = tensor.shape
 
-        tensor = tensor.reshape(
-            batch_size,
-            num_patches,
-            self.num_heads,
-            self.head_dim
-        )
-
+        tensor = tensor.reshape(batch_size, num_patches, self.num_heads, self.head_dim)
         tensor = tensor.permute(0, 2, 1, 3)
 
         # Bảo đảm vùng nhớ liên tục cho các phép reshape tiếp theo.

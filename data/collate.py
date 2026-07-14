@@ -12,16 +12,10 @@ class ImageCaptionCollator:
     Token bình thường có giá trị False.
     """
 
-    def __init__(
-        self,
-        pad_token_id: int
-    ):
+    def __init__(self, pad_token_id: int):
         self.pad_token_id = pad_token_id
 
-    def __call__(
-        self,
-        batch: list[dict[str, object]]
-    ) -> dict[str, object]:
+    def __call__(self, batch: list[dict[str, object]]) -> dict[str, object]:
         images = torch.stack([
             item["image"]
             for item in batch
@@ -32,11 +26,7 @@ class ImageCaptionCollator:
             for item in batch
         ]
 
-        caption_ids = pad_sequence(
-            caption_sequences,
-            batch_first=True,
-            padding_value=self.pad_token_id
-        )
+        caption_ids = pad_sequence(caption_sequences, batch_first=True, padding_value=self.pad_token_id)
 
         caption_lengths = torch.tensor(
             [
@@ -46,9 +36,7 @@ class ImageCaptionCollator:
             dtype=torch.long
         )
 
-        caption_padding_mask = (
-            caption_ids == self.pad_token_id
-        )
+        caption_padding_mask = (caption_ids == self.pad_token_id)
 
         return {
             "filenames": [
