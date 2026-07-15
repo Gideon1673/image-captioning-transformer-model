@@ -5,10 +5,10 @@ import torch.nn as nn
 
 from data.patching_embedding import PatchEmbedding
 from data.positional_embedding import PositionalEmbedding
-from models.language_modeling_head import LanguageModelingHead
-from models.text_embedding import TextEmbedding
-from models.text_transformer_decoder import TextTransformerDecoder
-from models.vision_transformer_encoder import VisionTransformerEncoder
+from models._4_0_language_modeling_head import LanguageModelingHead
+from models._2_text_embedding import TextEmbedding
+from models._3_0_text_transformer_decoder import TextTransformerDecoder
+from models._1_0_vision_transformer_encoder import VisionTransformerEncoder
 
 
 class ImageCaptioningTransformer(nn.Module):

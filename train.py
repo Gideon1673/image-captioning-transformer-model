@@ -17,7 +17,7 @@ from data.resize_image import resize_image
 from data.split_dataset import split_dataset
 from data.tokenizer import CaptionTokenizer
 from data.vocabulary import Vocabulary
-from models.image_captioning_transformer import ImageCaptioningTransformer
+from models._0_image_captioning_transformer import ImageCaptioningTransformer
 
 RUN_DATA_PREPARATION = False
 NUM_WORKERS = 4
