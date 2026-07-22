@@ -70,13 +70,13 @@
 #### Diễn giải ban đầu
 * Đầu tiên xét công thức của hàm Softmax: $ \hat{y}_j = \text{softmax}(z)_j = \frac{e^{z_j}}{\sum_{k=0}^{1} e^{z_k}} $
 * Đồ thị của hàm này với 2 chiều như sau:
-  ```mermaid
-    xychart-beta
-        title "Softmax với hai logits [x, 0]"
-        x-axis "Logit x" ["-6", "-5", "-4", "-3", "-2", "-1", "0", "1", "2", "3", "4", "5", "6"]
-        y-axis "Probability" 0 --> 1
-        line [0.0025, 0.0067, 0.0180, 0.0474, 0.1192, 0.2689, 0.5000, 0.7311, 0.8808, 0.9526, 0.9820, 0.9933, 0.9975]
-    ```
+```mermaid
+xychart-beta
+    title "Softmax với hai logits [x, 0]"
+    x-axis "Logit x" ["-6", "-5", "-4", "-3", "-2", "-1", "0", "1", "2", "3", "4", "5", "6"]
+    y-axis "Probability" 0 --> 1
+    line [0.0025, 0.0067, 0.0180, 0.0474, 0.1192, 0.2689, 0.5000, 0.7311, 0.8808, 0.9526, 0.9820, 0.9933, 0.9975]
+```
 * Khi 1 giá trị đi qua hàm này, output sẽ là một xác suất trong khoảng từ 0 đến 1. Khi giá trị logit tăng lên, xác suất cũng tăng theo. Khi giá trị logit giảm xuống, xác suất giảm theo. Khi giá trị logit bằng 0, xác suất là 0.5.
 * Giả sử chúng ta bỏ qua bước chia tỷ lệ và tính toán sự chú ý trực tiếp như sau: $$Attention = softmax(Q.K^T)V$$
 * Ta biết rằng tích vô hướng của 2 vector sẽ cho ra 1 giá trị bằng các phép cộng liên tục. Suy ra, khi số chiều của vector tăng lên, mà thật ra trong các mô hình Transformer thực tế, $d_{model}$ rơi vào khoảng `64.128`, hoặc thậm chí lớn hơn
@@ -179,7 +179,10 @@
 
 ### Tạo ma trận Q,K,V
 * Cần tạo 3 ma trận riêng biệt : Q(Query), K(Key) và V(Value)
-* Tạo ra bằng cách nhân ma trận đầu vào $X$ với 3 ma trận trọng số riêng biệt: $W_Q$, $W_K$, và $W_V$. Các ma trận trọng số này được học trong quá trình huấn luyện $$Q = X*W_Q K = X*W_K, V = X*W_V$$
+* Tạo ra bằng cách nhân ma trận đầu vào $X$ với 3 ma trận trọng số riêng biệt: $W_Q$, $W_K$, và $W_V$. Các ma trận trọng số này được học trong quá trình huấn luyện
+```math
+\begin{aligned} Q = X \cdot W_Q \\ K = X \cdot W_K \\ V = X \cdot W_V \end{aligned} 
+```
 * Ví dụ, giả sử $d_k=3$ ta muốn có vectơ Q, K, V có kích thước 3. Vì vậy, mỗi ma trận trọng số có dạng `4 x 3` (kích thước đầu vào 4, kích thước đầu ra 3)
 
 ### Một số đặc điểm của $W_Q, W_K, W_V$
@@ -189,10 +192,16 @@
   * $W_Q^{(h)}, W_K^{(h)}, W_V^{(h)}$ cho Head thứ h
   * Mục đích là để mỗi Head học một cách nhìn khác nhau về cùng một token
 #### Tại sao cần $W_Q, W_K, W_V$
-* Giả sử embedding vector của từ `cat` là $X = \begin{bmatrix}0.8 & 0.2 & 0.6 & 0.4\end{bmatrix}$
+* Giả sử embedding vector của từ `cat` là
+```math
+X = \begin{bmatrix}0.8 & 0.2 & 0.6 & 0.4\end{bmatrix} 
+```
 * Nhưng khi làm Transformer cần trả lời 3 câu hỏi khác nhau - như ở phần `Self-Attention` đã nêu
 * Một vector $X$ duy nhất không nên bị buộc phải đóng cả 3 vai trò cùng lúc
-* Vì vậy các nhà nghiên cứu dùng ba phép biến đổi tuyến tính khác nhau: $$\begin{aligned}Q = xW_Q \\ K = xW_K \\ V = xW_V \end{aligned}$$
+* Vì vậy các nhà nghiên cứu dùng ba phép biến đổi tuyến tính khác nhau:
+```math
+\begin{aligned}Q = xW_Q \\ K = xW_K \\ V = xW_V \end{aligned} 
+```
 * Có thể hình dung:
     ```
                     ┌── W_Q ──> "Tôi muốn tìm gì?"
@@ -213,7 +222,10 @@
             └──────── Head 2 → không gian 2 chiều
     ```
   * Với mỗi head: $W_Q^{(h)},W_K^{(h)},W_V^{(h)}$
-  * Ví dụ Head 1 có: $$W_Q^{(1)} = \begin{bmatrix}? & ? \\ ? & ?\\ ? & ?\\ ? & ?\end{bmatrix}$$
+  * Ví dụ Head 1 có: 
+```math
+W_Q^{(1)} = \begin{bmatrix}? & ? \\ ? & ?\\ ? & ?\\ ? & ?\end{bmatrix}
+  ```
   * Tại sao lại là `4x2`, bởi vì nó $R^{4} \rightarrow R^{2}$, tức là:
     ```text
     Embedding token
@@ -228,9 +240,15 @@
     ```
 * Khi model vừa được tạo, nó chưa biết ngôn ngữ, do đó ban đầu các giá trị $W_Q,W_K,W_V$ thường được khởi tạo bằng các số nhỏ theo 1 chiến lược nhất định
 * Ví dụ Head 1 có thể bắt đầu với các ma trận như sau:
-  * $$W_Q^{(1)} = \begin{bmatrix}0.1 & 0.2 \\ -0.3 & 0.4\\ 0.5 & 0.6\\ 0.7 & -0.8\end{bmatrix}$$
-  * $$W_K^{(1)} = \begin{bmatrix}0.2 & 0.1 \\ 0.4 & 0.3\\ -0.6 & 0.5\\ -0.8 & 0.7\end{bmatrix}$$
-  * $$W_V^{(1)} = \begin{bmatrix}0.3 & 0.4 \\ 0.5 & 0.6\\ 0.7 & 0.8\\ -0.9 & 1.0\end{bmatrix}$$
+```math
+W_Q^{(1)} = \begin{bmatrix}0.1 & 0.2 \\ -0.3 & 0.4\\ 0.5 & 0.6\\ 0.7 & -0.8\end{bmatrix} 
+```
+```math
+W_K^{(1)} = \begin{bmatrix}0.2 & 0.1 \\ 0.4 & 0.3\\ -0.6 & 0.5\\ -0.8 & 0.7\end{bmatrix}
+```
+```math
+W_V^{(1)} = \begin{bmatrix}0.3 & 0.4 \\ 0.5 & 0.6\\ 0.7 & 0.8\\ -0.9 & 1.0\end{bmatrix}
+```
 * Ban đầu các con số này chưa mang ý nghĩa rõ ràng, sau hàng nghìn hoặc hàng triệu lần cập nhật gradient:
     ```
     Random W
@@ -251,9 +269,11 @@
 
 #### Tại sao phải dùng phép Linear?
 * Phép biến đổi $Q = X W_Q$ thực chất là 1 phép biến đổi tuyến tính
-* Ví dụ xét một vector 2 chiều $X = \begin{bmatrix} x_1 \\ x_2 \end{bmatrix}$
-  * $Q = X W_Q = \begin{bmatrix} x_1 \\ x_2 \end{bmatrix} \begin{bmatrix} w_{11} & w_{12} \\ w_{21} & w_{22} \end{bmatrix} = \begin{bmatrix} x_1 w_{11} + x_2 w_{21} \\ x_1 w_{12} + x_2 w_{22} \end{bmatrix} = \begin{bmatrix} y_1 \\ y_2 \end{bmatrix}$
-* Trong ví dụ, ta đã biến $\begin{bmatrix} x1 \\ x2 \end{bmatrix}$ thành $\begin{bmatrix} y_1 \\ y_2 \end{bmatrix}$ tức là ta đã chiếu vector đầu vào sang một không gian khác. Tại sao lại làm vậy?
+* Ví dụ xét một vector 2 chiều $X = [x_1, x_2]$
+```math
+Q = X W_Q = \begin{bmatrix} x_1 \\ x_2 \end{bmatrix} \begin{bmatrix} w_{11} & w_{12} \\ w_{21} & w_{22} \end{bmatrix} = \begin{bmatrix} x_1 w_{11} + x_2 w_{21} \\ x_1 w_{12} + x_2 w_{22} \end{bmatrix} = \begin{bmatrix} y_1 \\ y_2 \end{bmatrix}
+```
+* Trong ví dụ, ta đã biến $[x1,x2 ]$ thành $[y_1, y_2]$ tức là ta đã chiếu vector đầu vào sang một không gian khác. Tại sao lại làm vậy?
   * Bởi vì mỗi token có thể có nhiều khía cạnh khác nhau, ví dụ từ `bank` có thể là bờ sông hoặc ngân hàng
   * Khi ta chiếu vector đầu vào sang một không gian khác, mô hình sẽ học được cách phân tách các khía cạnh khác nhau của token
   * Mỗi Head trong Multi-Head Attention sẽ học cách chiếu token sang một không gian khác nhau, từ đó nắm bắt được nhiều khía cạnh khác nhau của token
@@ -263,8 +283,14 @@
   * Đúng: `The cat eats fish`
   * Dự đoán: `The cat eats car`
 * Loss ở đây cao
-* `Backpropagation` sẽ tính: $$\frac{\partial L}{\partial W_Q}, \frac{\partial L}{\partial W_K}, \frac{\partial L}{\partial W_V}$$
-* Sau đó cập nhật: $$\begin{aligned}W_Q = W_Q - \eta \frac{\partial L}{\partial W_Q} \\ W_K = W_K - \eta \frac{\partial L}{\partial W_K} \\ W_V = W_V - \eta \frac{\partial L}{\partial W_V} \end{aligned}$$
+* `Backpropagation` sẽ tính: 
+```math
+\frac{\partial L}{\partial W_Q}, \frac{\partial L}{\partial W_K}, \frac{\partial L}{\partial W_V}
+```
+* Sau đó cập nhật: 
+```math
+\begin{aligned}W_Q = W_Q - \eta \frac{\partial L}{\partial W_Q} \\ W_K = W_K - \eta \frac{\partial L}{\partial W_K} \\ W_V = W_V - \eta \frac{\partial L}{\partial W_V} \end{aligned}
+```
 * Qua nhiều ví dụ:
   ```text
     cat eats fish
