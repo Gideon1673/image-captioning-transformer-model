@@ -52,9 +52,11 @@
 * **Bước 1**: Từ Input là một vector embedding của Token, ta chia nó ra thành 8 phần như đã quy định 8 heads, như vậy
   mỗi head sẽ làm việc với một khía cạnh nhỏ hơn $$d_k = \frac{d_{model}}{h} = \frac{512}{8} = 64$$
 * **Bước 2**: Với mỗi đầu vào, ta sử dụng các Phép chiếu tuyến tính (Các ma trận trọng số ấy) đã học được của từng Head
-  để tạo ra các
-  vector $Q,K,V$: $$\begin{aligned} Q_i=X \cdot W_Q^i \\ K_i=X \cdot W_K^i \\ V_i=X \cdot W_V^i \end{aligned}$$
-    * Ở đây: `i` tương ứng với head thứ `i` mà ta chia ra ban đầu
+  để tạo ra các vector $Q,K,V$:
+```math
+\begin{aligned} Q_i=X \cdot W_Q^i \\ K_i=X \cdot W_K^i \\ V_i=X \cdot W_V^i \end{aligned} 
+  ```
+  * Ở đây: `i` tương ứng với head thứ `i` mà ta chia ra ban đầu
   ```
                   Input token embedding
                      (d_model = 512)
@@ -68,7 +70,7 @@
     (each 64)           (each 64)           (each 64)
       Head 1              Head 2              Head 8
   ```
-    * Ở đây, ta có thể thấy rằng cùng một embedding đầu vào có kích thước 512 được đưa vào mọi head, nhưng mỗi head sử
+  * Ở đây, ta có thể thấy rằng cùng một embedding đầu vào có kích thước 512 được đưa vào mọi head, nhưng mỗi head sử
       dụng ma trận trọng số riêng để tạo ra các ma trận trọng số `Q`, `K`, `V` nhỏ hơn của riêng nó với kích thước
       64</br></br>
 * **Bước 3**: Mỗi `head` giờ đây thực hiện Chức năng Self-Attention một cách độc lập bằng cách sử dụng các ma trận $Q_i,
