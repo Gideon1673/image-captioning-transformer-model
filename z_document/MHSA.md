@@ -56,7 +56,8 @@
 ```math
 \begin{aligned} Q_i=X \cdot W_Q^i \\ K_i=X \cdot W_K^i \\ V_i=X \cdot W_V^i \end{aligned} 
   ```
-  * Ở đây: `i` tương ứng với head thứ `i` mà ta chia ra ban đầu
+Ở đây: `i` tương ứng với head thứ `i` mà ta chia ra ban đầu
+
   ```
                   Input token embedding
                      (d_model = 512)
@@ -70,9 +71,9 @@
     (each 64)           (each 64)           (each 64)
       Head 1              Head 2              Head 8
   ```
-  * Ở đây, ta có thể thấy rằng cùng một embedding đầu vào có kích thước 512 được đưa vào mọi head, nhưng mỗi head sử
-      dụng ma trận trọng số riêng để tạo ra các ma trận trọng số `Q`, `K`, `V` nhỏ hơn của riêng nó với kích thước
-      64</br></br>
+Ở đây, ta có thể thấy rằng cùng một embedding đầu vào có kích thước 512 được đưa vào mọi head, nhưng mỗi head sử
+dụng ma trận trọng số riêng để tạo ra các ma trận trọng số `Q`, `K`, `V` nhỏ hơn của riêng nó với kích thước
+64</br></br>
 * **Bước 3**: Mỗi `head` giờ đây thực hiện Chức năng Self-Attention một cách độc lập bằng cách sử dụng các ma trận $Q_i,
   K_i, V_i$ riêng của nó: $$head_i = Attention(Q_i, K_i, V_i) = softmax(\frac{Q_i \cdot K_i^T}{\sqrt{d_k}}) \cdot V_i$$
     * Cả 8 head đều thực hiện việc này song song</br></br>
