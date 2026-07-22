@@ -122,3 +122,19 @@
 
 ## Ưu điểm của Multi-Head Attention
 
+1. **Biểu diễn phong phú hơn**: Mỗi `head` học một mô hình khác nhau, do đó kết quả cuối cùng nắm bắt được nhiều mối
+   quan hệ cùng một lúc.
+2. **Tính toán song song**: Tất cả các đầu đọc/ghi hoạt động song song, do đó tốc độ rất nhanh trên các GPU hiện đại.
+3. **Tổng chi phí như nhau**: Vì mỗi `head` sử dụng một chiều nhỏ hơn ( d_model / h), nên tổng quá trình tính toán tương
+   tự như một cơ chế chú ý lớn với chiều đầy đủ.
+4. **Khả năng học tập tốt hơn**: Mỗi `head` tự học hỏi từ dữ liệu, do đó mô hình có thể nắm bắt cả các mô hình
+   ngắn hạn và dài hạn cùng một lúc.
+5. **Tính linh hoạt**: Các `head` token khác nhau có thể chuyên về các lĩnh vực khác nhau - cú pháp, ý nghĩa, vị trí,
+   liên kết tầm xa, v.v.
+
+* Mô hình Transformer ban đầu sử dụng 8 attention head. Các mô hình LLM hiện đại sử dụng số lượng attention head cao hơn
+  nhiều. Nhiều mô hình LLM ngày nay sử dụng 32, 64, hoặc thậm chí nhiều hơn nữa attention head trong mỗi lớp, bởi vì
+  nhiều attention head hơn có thể nắm bắt được nhiều mối quan hệ hơn trong dữ liệu</br></br>
+* Việc có nhiều head cũng khiến quá trình suy luận tiêu tốn nhiều bộ nhớ hơn, vì vậy nhiều mô hình LLM hiện đại sử dụng
+  một biến thể gọi là `Grouped Query Attention` , giúp duy trì chất lượng gần với Multi-Head Attention trong khi sử dụng
+  ít bộ nhớ hơn nhiều

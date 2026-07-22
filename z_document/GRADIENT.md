@@ -21,9 +21,7 @@
 * Gradient là một vector gồm đạo hàm riêng theo nhiều
   biến: $$\nabla L = \left(\frac{\partial L}{\partial w_1}, \frac{\partial L}{\partial w_2}, \ldots, \frac{\partial L}{\partial w_n}\right)$$
 * Ví dụ: $f(x,y) = x^2 + 3y^2$
-*
-
-Gradient: $$\nabla f = \left(\frac{\partial f}{\partial x}, \frac{\partial f}{\partial y}\right) = \begin{bmatrix}2x \\ 6y\end{bmatrix}$$
+* Gradient: $$\nabla f = \left(\frac{\partial f}{\partial x}, \frac{\partial f}{\partial y}\right) = \begin{bmatrix}2x \\ 6y\end{bmatrix}$$
 
 * Tại $(x,y) = (2,1)$ : $\nabla f(2,1) = \begin{bmatrix}4 \\ 6\end{bmatrix}$
 * Vector này cho biết:
