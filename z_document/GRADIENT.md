@@ -18,12 +18,19 @@
 ## Gradient trong hàm nhiều biến
 
 * Trong học máy, hàm thường phụ thuộc vào rất nhiều biến: $L(w_1,w_2,w_3,...,w_n)$
-* Gradient là một vector gồm đạo hàm riêng theo nhiều
-  biến: $$\nabla L = \left(\frac{\partial L}{\partial w_1}, \frac{\partial L}{\partial w_2}, \ldots, \frac{\partial L}{\partial w_n}\right)$$
+* Gradient là một vector gồm đạo hàm riêng theo nhiều biến:
+```math
+\nabla L = \left(\frac{\partial L}{\partial w_1}, \frac{\partial L}{\partial w_2}, \ldots, \frac{\partial L}{\partial w_n}\right) 
+```
 * Ví dụ: $f(x,y) = x^2 + 3y^2$
-* Gradient: $$\nabla f = \left(\frac{\partial f}{\partial x}, \frac{\partial f}{\partial y}\right) = \begin{bmatrix}2x \\ 6y\end{bmatrix}$$
-
-* Tại $(x,y) = (2,1)$ : $\nabla f(2,1) = \begin{bmatrix}4 \\ 6\end{bmatrix}$
+* Gradient:
+```math
+\nabla f = \left(\frac{\partial f}{\partial x}, \frac{\partial f}{\partial y}\right) = \begin{bmatrix}2x \\ 6y\end{bmatrix} 
+```
+* Tại $(x,y) = (2,1)$ : 
+```math
+\nabla f(2,1) = \begin{bmatrix} 4 \\ 6 \end{bmatrix}
+```
 * Vector này cho biết:
     * Hàm tăng nhanh nhất theo hướng $(4,6)$
     * Thay đổi x ảnh hưởng đến kết quả với mức độ 4.
@@ -90,11 +97,11 @@
 * Ví dụ: $f(x,y)=x^2 + y^2$
     * Chọn điểm bắt đầu $(x_0,y_0)=(4,3)$
     * Learning rate: $\eta = 0.1$
-    * Gradient: $\nabla f(x,y) = \begin{bmatrix}2x \\ 2y\end{bmatrix}$
+    * Gradient: $\nabla f(x,y) = [2x, 2y]$
     * Bước 0:
         * $\theta_0 = (4,3)$
         * Giá trị hàm: $f(4,3) = 16 + 9 = 25$
-        * Gradient: $\nabla f(4,3) = \begin{bmatrix}8 \\ 6\end{bmatrix}$
+        * Gradient: $\nabla f(4,3) = [8,6] $
     * Bước 1:
         * Cập nhật $x$ : $x_1 = 4 - 0,1 \times 8 = 4 - 0.8 = 3.2$
         * Cập nhật $y$ : $y_1 = 3 - 0,1 \times 6 = 3 - 0.6 = 2.4$
@@ -107,9 +114,26 @@
         * Bước n: Giá trị hàm mới $f(x_n, y_n) = 0$
 
 * Tổng quát cho hàm nhiều biến: $$f(x_1,...,x_n)$$
-* Gradient: $$\nabla f = \begin{bmatrix}\frac{\partial f}{\partial x_1} \\ \frac{\partial f}{\partial x_2} \\ ... \\ \frac{\partial f}{\partial x_n}\end{bmatrix}$$
+* Gradient: 
+```math
+\nabla f = 
+\begin{bmatrix}
+    \frac{\partial f}{\partial x_1} \\ 
+    \frac{\partial f}{\partial x_2} \\ 
+    ... \\ 
+    \frac{\partial f}{\partial x_n}
+\end{bmatrix}
+```
 * Gradient Descent: $$\theta_{t+1} = \theta_t - \eta \nabla_{\theta} f(\theta_t)$$
-* Gradient Descent theo từng biến: $$\begin{aligned} x_1 \leftarrow x_1 - \eta \frac{\partial f}{\partial x_1} \\ x_2 \leftarrow x_2 - \eta \frac{\partial f}{\partial x_2} \\ ... \\ x_n \leftarrow x_n - \eta \frac{\partial f}{\partial x_n} \end{aligned}$$
+* Gradient Descent theo từng biến: 
+```math
+\begin{aligned} 
+    x_1 \leftarrow x_1 - \eta \frac{\partial f}{\partial x_1} \\ 
+    x_2 \leftarrow x_2 - \eta \frac{\partial f}{\partial x_2} \\ 
+    ... \\ 
+    x_n \leftarrow x_n - \eta \frac{\partial f}{\partial x_n} 
+\end{aligned}
+```
 * Không có khác biệt bản chất giữa 2 biến và 1 triệu biến, chỉ có số lượng đạo hàm riêng nhiều hơn
 
 ### Gradient Descent cho hàm nhiều biến chính xác là những gì diễn ra trong Neural Network

@@ -66,18 +66,22 @@
 
 #### Trước Self Attention, LayerNorm nhận Vector $X = [1024]$
 
-* Pre-LayerNorm thực hiện $$\hat{X} = \text{LayerNorm}(X)$$l
+* Pre-LayerNorm thực hiện $$\hat{X} = \text{LayerNorm}(X)$$
 * LayerNorm được áp dụng độc lập cho từng patch, theo chiều `d_model = 1024`
 * Sau đó mỗi Patch (Token) được Normalize độc lập với nhau theo công thức ở Phần 2
 * Ví dụ nhỏ để thấy được cách hoạt động, ta chọn `d_model = 4`:
-    * Có 3 Patch như
-      sau: $$X = \begin{bmatrix} 10 & 20 & 30 & 40 \\ 1 & 2 & 3 & 4 \\ 100 & 200 & 300 & 400 \end{bmatrix}$$
-    * Mặc dù có độ lớn khác nhau nhưng cả 3 patch đều có pattern tương tự:
-      ```text
-      feature1 < feature2 < feature3 < feature4
-      ```
-    * Khi LayerNorm cho từng Patch, ta có kết
-      quả: $$LayerNorm(X) = \begin{bmatrix} -1.34 & 0.45 & 0.45 & 1.34 \\ -1.34 & 0.45 & 0.45 & 1.34 \\ -1.34 & 0.45 & 0.45 & 1.34 \end{bmatrix}$$
+  * Có 3 Patch như sau: 
+```math
+  X = \begin{bmatrix} 10 & 20 & 30 & 40 \\ 1 & 2 & 3 & 4 \\ 100 & 200 & 300 & 400 \end{bmatrix} 
+  ```
+  * Mặc dù có độ lớn khác nhau nhưng cả 3 patch đều có pattern tương tự:
+    ```text
+    feature1 < feature2 < feature3 < feature4
+    ```
+  * Khi LayerNorm cho từng Patch, ta có kết quả:
+```math
+    LayerNorm(X) = \begin{bmatrix} -1.34 & 0.45 & 0.45 & 1.34 \\ -1.34 & 0.45 & 0.45 & 1.34 \\ -1.34 & 0.45 & 0.45 & 1.34 \end{bmatrix}
+  ```
 * Điều quan trọng không phải là tất cả patch sẽ giống nhau như ví dụ đặc biệt này, mà là LayerNorm làm cho
   Self-Attention không bị quá phụ thuộc vào độ lớn tuyệt đối của vector, mà dễ tập trung hơn vào cấu trúc tương đối giữa
   các feature.
