@@ -120,8 +120,47 @@ Do mình đang dùng thư viện Pillow (PIL) để load ảnh, nên phải dùn
 
 Project này sử dụng kiến trúc Vision Transform (ViT), thực chất xuất phát từ kiến trúc Transformer ban đầu được dùng cho text.
 
-Đặc điểm của text là của thể tokenize by word, ví dụ "I", "Have", "a", "pen", etc. 
+Paper của ViT là *An Image is Worth 16x16 Words*, với idea đó là treating an image like a sequence of "visual words", then feeding that sequence into a Transformer encoder. Instead of using convolution layers as the main feature extractor like CNNs, ViT splits the image into patches and lets self-attention learn relationships between all patches globally.
+
+Đặc điểm của text là có thể tokenize by word, ví dụ "I", "Have", "a", "pen", etc. 
 
 Nhưng với ảnh nếu một bức ảnh 224\*224 mà coi mỗi pixel == token thì KHÔNG thể đủ infrastructure để tính toán được --> Họ chia bức ảnh thành nhiều mảnh gọi là *patches*, với kích thước (trong project này) là 16*16. Lúc này patch == token trong kiến trúc ViT.
 
 Config của patch size trong `Config.py`
+
+**Linear Projection** là convert image patch --> fixed-size vector (format mà Transformer can process). Sau quá trình này, output được gọi là **patch embedding**.
+
+Trong project này ảnh mình xử lý là `224*224`, với patch size = `16*16` --> Ra được 196 patches. Nói cách khác input vector của một ảnh đưa vào Linear Projection là [196, 768], tổng quát nếu thêm Batch size B vào nữa thì là [B, 196, 768]. Output vector của Linear Projection **không** quy định size, mà phải dựa vào *architecture*. Linear Projection thực hiện công thức rất đơn giản
+
+$$
+\text{patch embedding} = xW + b
+$$
+
+Nên output shape tổng quát là [B, 196, D] với $D$ là output size của Linear Projection. $D$ còn được gọi là `embedding_dim`, `hidden_size`, `model_dim`, `transformer dimension`.
+
+Rất nhiều ViT implementation sử dụng $D = 768$
+
+Vậy quy luật thật sự ở đây là gì? --> output size is chosen by architecture, not forced by patch size. Nên hoàn toàn có thể chọn 512, 768, 1024, etc. Luật duy nhất là phải match dimension và Encoder expect (vì output của Linear Projection sẽ feed vào Encoder, cụ thể là khớp với Encoder Hidden Size).
+
+Các yếu tố ảnh hưởng đến $D$
+
+1. Model capacity: Thông thường $D$ càng lớn thì patch token can store richer information. (vì chứa nhiều số trong đó hơn mà)
+2. Transformer Encoder Hidden Size: The output of Linear Projection becomes the input to the Transformer Encoder.
+
+```
+Patch Projection output: [B, 196, 768]
+Transformer expects:     [B, sequence_length, 768]
+```
+
+3. Số lượng attention heads: In Multi-Head Self-Attention, $D$ is split across attention heads. Tức là `head_dim = D / num_heads`, thông thường người ta sẽ chọn $D$ chia hết được cho `num_heads`, và số chiều của head `head_dims` thông thường là 64.
+
+QUESTION
+
+1. Trong công thức Linear Projection, nếu input là 768, mà output != 768 thì làm sao nhân được ma trận nhỉ?
+2. Đọc file config thấy $D = 256$, số heads = 4 --> Số chiều của head = 64 (configuration khá lạ)
+3. Tại sao cần Linear Projection? Vì suy cho thực chất thứ nó làm là đổi số chiều + tính toán đơn giản? --> Gợi ý: Tác dụng learning $W$ và $b$, output vector mới đại diện cho toàn bộ 768 values, chứ không đơn lẻ intensity value của 1 pixel, etc. 
+
+## Add Positional embedding
+
+
+
