@@ -3,3 +3,5 @@
 datasets/raw/Images/*
 /datasets/raw/captions.txt
 /datasets/processed/*
+__pycache__/
+*.pyc

@@ -1,0 +1,166 @@
+# Giải thích code by ThangHQ
+
+Flow từ đầu đến cuối của chương trình này như sau
+
+## Data preparation
+
+Chỉ chạy 1 lần duy nhất hàm `prepare_training_data`, hàm này làm 3 việc
+
+1. Gọi `prepare_dataset`: Tạo file `.json` lưu mapping giữa image_name và các captions của nó
+2. Chia dataset thành 3 tập: Train + Test + Val dùng hàm `split_dataset`
+3. Resize lại tất cả ảnh tập Train dùng hàm `resize_image`: Kích thước ảnh config được trong code. Hiện tại resize ảnh thành vuông 224\*224. Thực hiện resize bằng cách centre crop (giữ lại phần trung tâm kích thước 224*224, phần còn lại cắt hết)
+
+Sample output bước 1:
+
+```
+Tổng số ảnh: 3
+Tổng số caption: 15
+Caption ít nhất mỗi ảnh: 5
+Caption nhiều nhất mỗi ảnh: 5
+Caption trung bình mỗi ảnh: 5.00
+Project root: /home/gideon/image-captioning-transformer-model
+Image directory: /home/gideon/image-captioning-transformer-model/datasets/raw/Images
+Caption file: /home/gideon/image-captioning-transformer-model/datasets/raw/captions.txt
+Output file: /home/gideon/image-captioning-transformer-model/datasets/processed/image_to_captions.json
+Đã lưu mapping tại: /home/gideon/image-captioning-transformer-model/datasets/processed/image_to_captions.json
+```
+
+Sample output bước 2:
+
+```
+===== DATASET SPLIT STATISTICS =====
+Tổng số ảnh: 3
+Tổng số caption: 15
+
+Train: 2 ảnh (66.67%), 10 caption
+Validation: 0 ảnh (0.00%), 0 caption
+Test: 1 ảnh (33.33%), 5 caption
+
+Train file: /home/gideon/image-captioning-transformer-model/datasets/processed/train.json
+Validation file: /home/gideon/image-captioning-transformer-model/datasets/processed/validation.json
+Test file: /home/gideon/image-captioning-transformer-model/datasets/processed/test.json
+```
+
+Sample output bước 3:
+
+```
+------------------------------------------------------------
+[1/2] Thành công: 47871819_db55ac4699.jpg
+[2/2] Thành công: 42637987_866635edf6.jpg
+
+===== KẾT QUẢ =====
+Tổng số ảnh: 2
+Resize thành công: 2
+Resize thất bại: 0
+Đã cập nhật JSON: /home/gideon/image-captioning-transformer-model/datasets/processed/train.json
+```
+
+QUESTION
+
+1. Tại sao lại chỉ resize ảnh train? Nếu vậy ảnh khi inference đưa vào kích thước khác thì sao model đoán được tốt? Đây là vô tình hay cố ý?
+2. Việc center crop sẽ gây mất dữ liệu ở góc. Đây là vô tình hay cố ý, hay là sai sót nhưng buộc phải chấp nhận?
+
+
+Sample output đoạn PyTorch detect CUDA
+
+```
+Device: cuda:0
+GPU: NVIDIA GeForce 930MX
+```
+
+## Transpose, chuyển về phân phối chuẩn
+
+IMAGE_TRANSFORM thực hiện 2 bước sau
+
+1. Convert về CHW
+2. Normalize ảnh: Bản thân `ToTensor()` đã chuyển [0, 255] về [0, 1] rồi. Sau đó normalize để scale các con số không bị lệch nhiều --> Giúp training stable hơn.
+3. Vector chứa `std` và `mean` đã được tính sẵn dựa trên toàn bộ ảnh trong dataset để đưa về phân phối chuẩn.
+
+QUESTION
+
+1. Tìm hiểu hàm class `ImageCaptionDataset` được dùng ở đâu?
+2. `HWC` và `CHW` là gì? Trong code có hàm `ToTensor()` để chuyển từ HWC --> CHW, tại sao phải làm như thế?
+3. `transforms.Normalize(mean=[...], std=[...])` hàm này trong code đang hard-code `mean` và `std` value. Tại sao chọn bộ mean và std này?
+
+HWC and CHW refer to the physical order in which multidimensional image data (tensors) is stored in a computer's linear memory.
+
+- **HWC (Height, Width, Channels)**: Also known as *channel-last* or interleaved format.
+- **CHW (Channels, Height, Width)**: Also known as *channel-first* or planar format.
+
+Images are essentially 3D matrices containing a height, a width, and color channels (like Red, Green, and Blue). However, RAM and GPU memory are strictly 1-dimensional. To store a 3D matrix, the system must "flatten" it into a 1D sequence of bytes. The data format dictates the logic of how this flattening occurs.
+
+- **HWC (Interleaved)**: The memory stores all channel values for a single pixel before moving to the next pixel. If you read the linear memory sequentially, you see: R1, G1, B1, then R2, G2, B2, and so on.
+- **CHW (Planar)**: The memory stores an entire channel (a 2D plane of pixels) before moving to the next channel. Reading sequentially, you see all Red values (R1, R2, R3...), followed by all Green values (G1, G2, G3...), and finally all Blue values.
+
+[Tensor Physical Layouts on Memory](https://leimao.github.io/blog/Tensor-Physical-Layout-on-Memory/)
+
+*(Note: In deep learning, you will often see this written as NHWC and NCHW, where N stands for the Batch size—the number of images processed at once).*
+
+**Tại sao lại chọn HWC/CHW?** Phụ thuộc vào target hardware là CPU/GPU mà sử dụng, để tận dụng processing speed, cache locality, and hardware utilization during computation tối ưu theo từng loại hardware.
+
+1. HWC dùng cho CPUs --> Libs hay dùng loại này là OpenCV, Matplotlib, PIL/Pillow, and TensorFlow/Keras (which initially optimized for legacy architectures before GPUs dominated).
+2. CHW dùng cho GPUs --> PyTorch, ONNX, and NVIDIA's cuDNN library (built specifically from the ground up for GPU acceleration).
+
+Ở trong PyTorch thì nó cung cấp sẵn hàm để convert HWC --> CHW rồi, ví dụ
+
+```python
+from torchvision import transforms
+from PIL import Image
+
+image_hwc = Image.open("dataset/sample.jpg")
+
+# Automatically converts PIL Image (HWC) to a PyTorch Tensor (CHW)
+transform = transforms.ToTensor()
+tensor_chw = transform(image_hwc)
+```
+
+Do mình đang dùng thư viện Pillow (PIL) để load ảnh, nên phải dùng `transforms.ToTensor()` để convert về CHW.
+
+## Patches
+
+Project này sử dụng kiến trúc Vision Transform (ViT), thực chất xuất phát từ kiến trúc Transformer ban đầu được dùng cho text.
+
+Paper của ViT là *An Image is Worth 16x16 Words*, với idea đó là treating an image like a sequence of "visual words", then feeding that sequence into a Transformer encoder. Instead of using convolution layers as the main feature extractor like CNNs, ViT splits the image into patches and lets self-attention learn relationships between all patches globally.
+
+Đặc điểm của text là có thể tokenize by word, ví dụ "I", "Have", "a", "pen", etc. 
+
+Nhưng với ảnh nếu một bức ảnh 224\*224 mà coi mỗi pixel == token thì KHÔNG thể đủ infrastructure để tính toán được --> Họ chia bức ảnh thành nhiều mảnh gọi là *patches*, với kích thước (trong project này) là 16*16. Lúc này patch == token trong kiến trúc ViT.
+
+Config của patch size trong `Config.py`
+
+**Linear Projection** là convert image patch --> fixed-size vector (format mà Transformer can process). Sau quá trình này, output được gọi là **patch embedding**.
+
+Trong project này ảnh mình xử lý là `224*224`, với patch size = `16*16` --> Ra được 196 patches. Nói cách khác input vector của một ảnh đưa vào Linear Projection là [196, 768], tổng quát nếu thêm Batch size B vào nữa thì là [B, 196, 768]. Output vector của Linear Projection **không** quy định size, mà phải dựa vào *architecture*. Linear Projection thực hiện công thức rất đơn giản
+
+$$
+\text{patch embedding} = xW + b
+$$
+
+Nên output shape tổng quát là [B, 196, D] với $D$ là output size của Linear Projection. $D$ còn được gọi là `embedding_dim`, `hidden_size`, `model_dim`, `transformer dimension`.
+
+Rất nhiều ViT implementation sử dụng $D = 768$
+
+Vậy quy luật thật sự ở đây là gì? --> output size is chosen by architecture, not forced by patch size. Nên hoàn toàn có thể chọn 512, 768, 1024, etc. Luật duy nhất là phải match dimension và Encoder expect (vì output của Linear Projection sẽ feed vào Encoder, cụ thể là khớp với Encoder Hidden Size).
+
+Các yếu tố ảnh hưởng đến $D$
+
+1. Model capacity: Thông thường $D$ càng lớn thì patch token can store richer information. (vì chứa nhiều số trong đó hơn mà)
+2. Transformer Encoder Hidden Size: The output of Linear Projection becomes the input to the Transformer Encoder.
+
+```
+Patch Projection output: [B, 196, 768]
+Transformer expects:     [B, sequence_length, 768]
+```
+
+3. Số lượng attention heads: In Multi-Head Self-Attention, $D$ is split across attention heads. Tức là `head_dim = D / num_heads`, thông thường người ta sẽ chọn $D$ chia hết được cho `num_heads`, và số chiều của head `head_dims` thông thường là 64.
+
+QUESTION
+
+1. Trong công thức Linear Projection, nếu input là 768, mà output != 768 thì làm sao nhân được ma trận nhỉ?
+2. Đọc file config thấy $D = 256$, số heads = 4 --> Số chiều của head = 64 (configuration khá lạ)
+3. Tại sao cần Linear Projection? Vì suy cho thực chất thứ nó làm là đổi số chiều + tính toán đơn giản? --> Gợi ý: Tác dụng learning $W$ và $b$, output vector mới đại diện cho toàn bộ 768 values, chứ không đơn lẻ intensity value của 1 pixel, etc. 
+
+## Add Positional embedding
+
+
+
