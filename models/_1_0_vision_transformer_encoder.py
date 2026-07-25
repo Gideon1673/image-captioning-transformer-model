@@ -146,7 +146,7 @@ class VisionTransformerEncoder(nn.Module):
             d_ff: int = Config.d_ff,
             num_layers: int = Config.num_encoder_layers,
             dropout: float = Config.attention_dropout,
-            layer_norm_eps: float = Config.eps
+            layer_norm_eps: float = Config.layer_norm_eps
     ):
         super().__init__()
 
