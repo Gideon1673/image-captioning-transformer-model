@@ -12,14 +12,10 @@ from torch.utils.data import DataLoader
 from config import Config
 from data.collate import ImageCaptionCollator
 from data.image_caption_dataset import ImageCaptionDataset
-from data.prepare_flicrk8k_datasets import prepare_dataset
-from data.resize_image import resize_image
-from data.split_dataset import split_dataset
 from data.tokenizer import CaptionTokenizer
 from data.vocabulary import Vocabulary
-from models._0_image_captioning_transformer import ImageCaptioningTransformer
+from models._0_image_captioning_half_transformer import ImageCaptioningTransformer
 
-RUN_DATA_PREPARATION = False
 NUM_WORKERS = 4
 RANDOM_SEED = 42
 
@@ -29,15 +25,6 @@ def get_device() -> torch.device:
         return torch.device("cuda:0")
 
     return torch.device("cpu")
-
-
-def prepare_training_data() -> None:
-    if not RUN_DATA_PREPARATION:
-        return
-
-    prepare_dataset()
-    split_dataset()
-    resize_image()
 
 
 def create_or_load_vocabulary() -> Vocabulary:
@@ -185,7 +172,6 @@ def main() -> None:
     # --------------------------------------------------
     # Dataset và device.
     # --------------------------------------------------
-    # prepare_training_data()
     device = get_device()
 
     print(f"Device: {device}")
@@ -216,7 +202,6 @@ def main() -> None:
         d_model=Config.d_model,
         num_heads=Config.num_heads,
         d_ff=Config.d_ff,
-        num_encoder_layers=Config.num_encoder_layers,
         num_decoder_layers=Config.num_decoder_layers,
         dropout=0.1,
         layer_norm_eps=1e-6
